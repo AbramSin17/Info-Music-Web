@@ -89,7 +89,7 @@ export default function EventsPage() {
                 country: event.venue?.country || 'Unknown Country',
               },
               description: event.description || '',
-              ticketUrl: event.offers?.find(offer => offer.type === "Tickets")?.url,
+              ticketUrl: event.offers?.find((offer: { type: string }) => offer.type === "Tickets")?.url,
               bandsintownUrl: event.url,
             })
           })

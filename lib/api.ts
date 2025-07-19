@@ -19,7 +19,8 @@ export async function getAllArtistDetails(artistNameOrMbid: string): Promise<any
     console.error("LASTFM_API_KEY is not defined.");
     return null;
   }
-  const url = `http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(artistNameOrMbid)}&api_key=${LASTFM_API_KEY}&format=json`;
+  // PASTIKAN INI HTTPS
+  const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(artistNameOrMbid)}&api_key=${LASTFM_API_KEY}&format=json`;
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -40,7 +41,8 @@ export async function searchArtistLastFm(query: string): Promise<any[]> {
     console.error("LASTFM_API_KEY is not defined.");
     return [];
   }
-  const url = `http://ws.audioscrobbler.com/2.0/?method=artist.search&artist=${encodeURIComponent(query)}&api_key=${LASTFM_API_KEY}&format=json`;
+  // PASTIKAN INI HTTPS
+  const url = `https://ws.audioscrobbler.com/2.0/?method=artist.search&artist=${encodeURIComponent(query)}&api_key=${LASTFM_API_KEY}&format=json`;
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -95,7 +97,8 @@ export async function getArtistTopAlbumsLastFm(artistName: string, mbid?: string
     return [];
   }
   const identifier = mbid ? `mbid=${mbid}` : `artist=${encodeURIComponent(artistName)}`;
-  const url = `http://ws.audioscrobbler.com/2.0/?method=artist.gettopalbums&${identifier}&api_key=${LASTFM_API_KEY}&format=json`;
+  // PASTIKAN INI HTTPS
+  const url = `https://ws.audioscrobbler.com/2.0/?method=artist.gettopalbums&${identifier}&api_key=${LASTFM_API_KEY}&format=json`;
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -117,7 +120,8 @@ export async function getArtistTopTracksLastFm(artistName: string, mbid?: string
     return [];
   }
   const identifier = mbid ? `mbid=${mbid}` : `artist=${encodeURIComponent(artistName)}`;
-  const url = `http://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&${identifier}&api_key=${LASTFM_API_KEY}&format=json`;
+  // PASTIKAN INI HTTPS
+  const url = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&${identifier}&api_key=${LASTFM_API_KEY}&format=json`;
   try {
     const response = await fetch(url);
     if (!response.ok) {
