@@ -1,3 +1,4 @@
+// components/artist-card.tsx
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,7 +12,7 @@ interface Artist {
   id: string
   name: string
   genre: string
-  image: string
+  image: string // Ini akan menjadi URL gambar yang sudah difilter di app/page.tsx
   isLiked: boolean
 }
 
@@ -30,14 +31,19 @@ export function ArtistCard({ artist, onToggleLike }: ArtistCardProps) {
       onMouseLeave={() => setIsHovered(false)}
     >
       <CardContent className="p-0">
-        <Link href={`/artist/${artist.id}`}>
+        {/* Menggunakan encodeURIComponent untuk artist.name */}
+        <Link href={`/artist/${encodeURIComponent(artist.name)}`}>
           <div className="relative">
             <Image
-              src={artist.image || "/placeholder.svg"}
+              src={artist.image || "/placeholder.svg?height=300&width=300"} // Gunakan artist.image yang sudah difilter
               alt={artist.name}
               width={300}
               height={300}
               className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+              onError={(e) => {
+                // Tambahkan onError di sini sebagai jaring pengaman terakhir
+                (e.target as HTMLImageElement).src = '/placeholder.svg?height=300&width=300';
+              }}
             />
             {isHovered && (
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -47,7 +53,8 @@ export function ArtistCard({ artist, onToggleLike }: ArtistCardProps) {
 
         <div className="p-4">
           <div className="flex items-start justify-between mb-2">
-            <Link href={`/artist/${artist.id}`} className="flex-1 min-w-0">
+            {/* Menggunakan encodeURIComponent untuk artist.name */}
+            <Link href={`/artist/${encodeURIComponent(artist.name)}`} className="flex-1 min-w-0">
               <h3 className="font-semibold text-lg text-white group-hover:text-cyan-400 transition-colors truncate">
                 {artist.name}
               </h3>

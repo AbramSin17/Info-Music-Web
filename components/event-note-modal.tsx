@@ -1,11 +1,24 @@
+// components/event-note-modal.tsx
 "use client"
 
 import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input" // Import Input
+import { Label } from "@/components/ui/label" // Import Label
 import { Textarea } from "@/components/ui/textarea"
-import { Calendar, MapPin, Save, Trash2, X } from "lucide-react"
+import { Calendar, MapPin, Music, Loader2 } from "lucide-react" // Tambahkan Loader2 icon
+import { format } from "date-fns" // Import format date-fns
+import { id } from "date-fns/locale" // Import locale date-fns
 
+// Interface Event (sama seperti di notes/page.tsx untuk EventForModal)
 interface Event {
   id: string
   title: string
@@ -18,23 +31,32 @@ interface Event {
   }
 }
 
+// Interface Note (sama seperti di notes/page.tsx, termasuk detail event)
 interface Note {
   id: string
   eventId: string
+  title: string // Judul catatan itu sendiri
   content: string
   createdAt: string
   updatedAt: string
+  eventTitle: string // Judul event
+  eventArtistName: string // Nama artis event
+  eventDatetime: string // Waktu event
+  eventVenueName: string // Nama venue
+  eventVenueCity: string // Kota venue
+  eventVenueCountry: string // Negara venue
 }
 
 interface EventNoteModalProps {
   isOpen: boolean
   onClose: () => void
   event: Event | null
-  existingNote?: Note
-  onSave: (eventId: string, content: string) => void
-  onUpdate: (noteId: string, content: string) => void
+  existingNote?: Note | null
+  onSave: (eventId: string, title: string, content: string) => void
+  onUpdate: (noteId: string, title: string, content: string) => void
   onDelete: (noteId: string) => void
 }
+
 
 export function EventNoteModal({
   isOpen,
@@ -45,131 +67,169 @@ export function EventNoteModal({
   onUpdate,
   onDelete,
 }: EventNoteModalProps) {
+  const [noteTitle, setNoteTitle] = useState("")
   const [noteContent, setNoteContent] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false) // State untuk proses hapus
 
   useEffect(() => {
-    if (existingNote) {
-      setNoteContent(existingNote.content)
-    } else {
-      setNoteContent("")
+    // Reset state saat modal dibuka atau existingNote berubah
+    if (isOpen) {
+      setNoteTitle(existingNote?.title || event?.title || "") // Ambil judul dari existingNote atau event
+      setNoteContent(existingNote?.content || "")
+      setIsSaving(false)
+      setIsDeleting(false)
     }
-  }, [existingNote, isOpen])
+  }, [isOpen, existingNote, event])
 
-  if (!event) return null
-
-  const eventDate = new Date(event.datetime)
-  const isEditing = !!existingNote
-
-  const handleSubmit = async () => {
-    if (!noteContent.trim()) return
-
-    setIsSubmitting(true)
-
+  const handleSaveClick = async () => {
+    if (!event || !noteTitle.trim() || !noteContent.trim()) {
+      // Di sini bisa tambahkan toast atau feedback ke user (dari parent)
+      console.error("Judul catatan, konten, atau event belum lengkap.");
+      return;
+    }
+    setIsSaving(true);
     try {
-      if (isEditing && existingNote) {
-        onUpdate(existingNote.id, noteContent.trim())
+      if (existingNote) {
+        await onUpdate(existingNote.id, noteTitle, noteContent); // Panggil onUpdate jika mode edit
       } else {
-        onSave(event.id, noteContent.trim())
+        await onSave(event.id, noteTitle, noteContent); // Panggil onSave jika mode tambah baru
       }
-      onClose()
+      onClose(); // Tutup modal setelah berhasil
     } catch (error) {
-      console.error("Error saving note:", error)
+      console.error("Error saving note in modal:", error);
+      // Tampilkan toast error dari parent jika ada
     } finally {
-      setIsSubmitting(false)
+      setIsSaving(false);
     }
-  }
+  };
 
-  const handleDelete = () => {
-    if (existingNote) {
-      onDelete(existingNote.id)
-      onClose()
+  const handleDeleteClick = async () => {
+    if (!existingNote) return;
+    setIsDeleting(true);
+    try {
+      await onDelete(existingNote.id);
+      onClose(); // Tutup modal setelah berhasil hapus
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      // Tampilkan toast error dari parent jika ada
+    } finally {
+      setIsDeleting(false);
     }
-  }
+  };
+
+  // Gunakan event atau data dari existingNote untuk display di modal
+  const displayEvent = event || (existingNote ? {
+    id: existingNote.eventId,
+    title: existingNote.eventTitle,
+    artist_name: existingNote.eventArtistName,
+    datetime: existingNote.eventDatetime,
+    venue: {
+      name: existingNote.eventVenueName,
+      city: existingNote.eventVenueCity,
+      country: existingNote.eventVenueCountry,
+    }
+  } : null)
+
+  if (!isOpen || !displayEvent) return null
+
+  const eventDate = new Date(displayEvent.datetime); // Pastikan ini valid
+  const isEventDateValid = !isNaN(eventDate.getTime()); // Cek apakah tanggal valid
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass-effect border-gray-800 max-w-2xl">
+      <DialogContent className="sm:max-w-[500px] bg-gray-900 text-white border-gray-700">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold glow-text">{isEditing ? "Edit Note" : "Add Note"}</DialogTitle>
+          <DialogTitle className="text-cyan-400">
+            {existingNote ? "Edit Catatan Event" : "Tambah Catatan Event"}
+          </DialogTitle>
+          <DialogDescription className="text-gray-400">
+            Untuk event: {displayEvent.title}
+          </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-6">
-          {/* Event Info */}
-          <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-            <h3 className="font-semibold text-lg mb-2">{event.title}</h3>
-            <p className="text-cyan-400 font-medium mb-3">{event.artist_name}</p>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <Calendar className="w-4 h-4" />
-                <span>
-                  {eventDate.toLocaleDateString()} at{" "}
-                  {eventDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <MapPin className="w-4 h-4" />
-                <span>
-                  {event.venue.name}, {event.venue.city}, {event.venue.country}
-                </span>
-              </div>
+        <div className="grid gap-4 py-4">
+          {/* Detail Event di dalam Modal */}
+          {isEventDateValid && (
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <Calendar className="w-4 h-4" />
+              <span>{format(eventDate, "EEEE, dd MMMM yyyy HH:mm", { locale: id })} WIB</span>
             </div>
+          )}
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <MapPin className="w-4 h-4" />
+            <span>{displayEvent.venue.name}, {displayEvent.venue.city}, {displayEvent.venue.country}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-400">
+            <Music className="w-4 h-4" />
+            <span>{displayEvent.artist_name}</span>
           </div>
 
-          {/* Note Input */}
-          <div className="space-y-3">
-            <label htmlFor="note-content" className="text-sm font-medium text-gray-300">
-              Your Note
-            </label>
+          {/* Judul Catatan */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="note-title-modal" className="text-right text-gray-300">
+              Judul Catatan
+            </Label>
+            <Input
+              id="note-title-modal"
+              value={noteTitle}
+              onChange={(e) => setNoteTitle(e.target.value)}
+              className="col-span-3 bg-gray-800 border-gray-600 text-white focus:border-cyan-400"
+              placeholder="Judul catatan Anda..."
+            />
+          </div>
+
+          {/* Konten Catatan */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="note-content-modal" className="text-right text-gray-300">
+              Konten
+            </Label>
             <Textarea
-              id="note-content"
-              placeholder="Add your thoughts, memories, or plans for this event..."
+              id="note-content-modal"
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}
-              className="min-h-32 bg-gray-800/50 border-gray-700 focus:border-cyan-400 resize-none"
-              maxLength={1000}
+              className="col-span-3 bg-gray-800 border-gray-600 text-white focus:border-cyan-400 min-h-[100px]"
+              placeholder="Tulis catatan Anda di sini..."
             />
-            <div className="flex justify-between items-center text-xs text-gray-500">
-              <span>{noteContent.length}/1000 characters</span>
-              {existingNote && <span>Last updated: {new Date(existingNote.updatedAt).toLocaleDateString()}</span>}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-700">
-            <div>
-              {isEditing && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDelete}
-                  className="bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-600/50"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Note
-                </Button>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                className="border-gray-600 hover:border-gray-500 bg-transparent"
-              >
-                <X className="w-4 h-4 mr-2" />
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit} disabled={!noteContent.trim() || isSubmitting} className="neon-gradient">
-                <Save className="w-4 h-4 mr-2" />
-                {isSubmitting ? "Saving..." : isEditing ? "Update Note" : "Save Note"}
-              </Button>
-            </div>
           </div>
         </div>
+        <DialogFooter>
+          {existingNote && ( // Tombol hapus hanya muncul jika edit catatan yang sudah ada
+            <Button
+              variant="destructive"
+              onClick={handleDeleteClick}
+              className="mr-auto"
+              disabled={isDeleting || isSaving}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Menghapus...
+                </>
+              ) : (
+                "Hapus Catatan"
+              )}
+            </Button>
+          )}
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="border-gray-600 text-gray-300 hover:bg-gray-700/50"
+            disabled={isSaving || isDeleting}
+          >
+            Batal
+          </Button>
+          <Button onClick={handleSaveClick} disabled={isSaving || isDeleting} className="bg-green-600 hover:bg-green-700">
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Menyimpan...
+              </>
+            ) : (
+              existingNote ? "Simpan Perubahan" : "Simpan Catatan"
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

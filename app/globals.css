@@ -41,6 +41,18 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
+
+  /* Neon Gradient for Buttons */
+  .neon-gradient {
+    background-image: linear-gradient(to right, #00ffff, #00aaff, #8000ff);
+    color: white;
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.6), 0 0 15px rgba(128, 0, 255, 0.4);
+    transition: all 0.3s ease;
+  }
+  .neon-gradient:hover {
+    background-image: linear-gradient(to right, #00ddee, #0099dd, #6600ee);
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.8), 0 0 20px rgba(128, 0, 255, 0.6);
+  }
 }
 
 /* Custom scrollbar */

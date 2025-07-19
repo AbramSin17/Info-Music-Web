@@ -1,88 +1,139 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Heart, Users } from "lucide-react"
+import { Heart, Users, Loader2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { getAllArtistDetails, getArtistImageFromBandsintown } from '@/lib/api' // Pastikan ini diimpor dengan benar
 
-interface Artist {
-  id: string
-  name: string
-  genre: string
-  image: string
+interface ArtistFromAPI {
+  name: string;
+  mbid?: string;
+  url: string;
+  image: Array<{ '#text': string; size: string }>;
+  bio?: {
+    summary: string;
+    content: string;
+  };
+  tags?: {
+    tag: Array<{ name: string; url: string }>;
+  };
+  stats?: {
+    listeners: string;
+    playcount: string;
+  };
 }
 
-const mockArtists: Record<string, Artist> = {
-  "1": {
-    id: "1",
-    name: "The Weeknd",
-    genre: "R&B / Pop",
-    image: "/placeholder.svg?height=300&width=300",
-  },
-  "2": { id: "2", name: "Queen", genre: "Rock", image: "/placeholder.svg?height=300&width=300" },
-  "3": {
-    id: "3",
-    name: "Ed Sheeran",
-    genre: "Pop / Folk",
-    image: "/placeholder.svg?height=300&width=300",
-  },
-  "4": {
-    id: "4",
-    name: "Daft Punk",
-    genre: "Electronic",
-    image: "/placeholder.svg?height=300&width=300",
-  },
-  "5": {
-    id: "5",
-    name: "Billie Eilish",
-    genre: "Alternative Pop",
-    image: "/placeholder.svg?height=300&width=300",
-  },
-  "6": {
-    id: "6",
-    name: "Arctic Monkeys",
-    genre: "Indie Rock",
-    image: "/placeholder.svg?height=300&width=300",
-  },
-  "7": {
-    id: "7",
-    name: "Taylor Swift",
-    genre: "Pop / Country",
-    image: "/placeholder.svg?height=300&width=300",
-  },
-  "8": {
-    id: "8",
-    name: "Radiohead",
-    genre: "Alternative Rock",
-    image: "/placeholder.svg?height=300&width=300",
-  },
+interface DisplayArtist {
+  id: string; // ID yang konsisten (MBID atau slug nama artis)
+  name: string;
+  genre: string;
+  image: string; // URL gambar akhir
+  isLiked: boolean; // Selalu true di halaman ini
 }
+
+// Fungsi Helper untuk Deteksi Placeholder Last.fm (sama dengan app/page.tsx dan app/artist/[id]/page.tsx)
+const isLastFmKnownPlaceholder = (url: string): boolean => {
+  if (!url) return false;
+  return url.includes('2a96cbd8b46e442fc41c2b86b821562f.png') ||
+         url.includes('default_avatar.png') ||
+         url.includes('_avatar.png');
+};
+
 
 export default function LikesPage() {
-  const [likedArtists, setLikedArtists] = useState<Artist[]>([])
+  const [likedArtists, setLikedArtists] = useState<DisplayArtist[]>([])
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Load liked artists from localStorage
+  const fetchLikedArtistsData = useCallback(async () => {
+    setLoading(true)
     const savedLikes = localStorage.getItem("likedArtists")
-    const likedArtistIds = savedLikes ? JSON.parse(savedLikes) : []
+    const likedArtistIds: string[] = savedLikes ? JSON.parse(savedLikes) : []
 
-    const artists = likedArtistIds.map((id: string) => mockArtists[id]).filter(Boolean)
+    const fetchedArtists: DisplayArtist[] = []
 
-    setLikedArtists(artists)
+    for (const artistId of likedArtistIds) {
+      try {
+        const artistDetail: ArtistFromAPI | null = await getAllArtistDetails(artistId) // Mendapatkan detail artis berdasarkan ID/nama
+        if (artistDetail) {
+          // Ambil gambar dari Bandsintown terlebih dahulu
+          const bandsintownImage = await getArtistImageFromBandsintown(artistDetail.name);
+
+          // Gambar dari Last.fm (jika ada dan bukan placeholder)
+          const lastFmRawImage = artistDetail.image?.find(img => img.size === 'extralarge' || img.size === 'large' || img.size === 'medium')?.['#text'];
+          const lastFmImageCleaned = (lastFmRawImage && !isLastFmKnownPlaceholder(lastFmRawImage)) ? lastFmRawImage : null;
+
+          // Prioritaskan: Bandsintown -> Last.fm (jika bukan placeholder) -> Placeholder lokal
+          const finalImage = bandsintownImage || lastFmImageCleaned || "/placeholder.svg?height=300&width=300";
+
+          fetchedArtists.push({
+            id: artistId, // Menggunakan ID yang sama dengan yang disimpan
+            name: artistDetail.name,
+            genre: artistDetail.tags?.tag?.[0]?.name || 'Unknown Genre', // Ambil genre dari Last.fm
+            image: finalImage,
+            isLiked: true, // Karena ini halaman artis yang disukai, ini selalu true
+          })
+        }
+      } catch (error) {
+        console.error(`Error fetching liked artist with ID ${artistId}:`, error)
+        // Opsional: tambahkan artis placeholder jika gagal mengambil data
+        fetchedArtists.push({
+          id: artistId,
+          name: "Unknown Artist",
+          genre: "Unknown Genre",
+          image: "/placeholder.svg?height=300&width=300",
+          isLiked: true,
+        });
+      }
+    }
+    setLikedArtists(fetchedArtists)
+    setLoading(false)
   }, [])
 
+  useEffect(() => {
+    fetchLikedArtistsData()
+  }, [fetchLikedArtistsData])
+
   const handleUnlike = (artistId: string) => {
-    // Remove from local state
+    // Hapus dari state lokal
     const updatedArtists = likedArtists.filter((artist) => artist.id !== artistId)
     setLikedArtists(updatedArtists)
 
-    // Update localStorage
+    // Perbarui localStorage
     const savedLikes = localStorage.getItem("likedArtists")
     const likedArtistIds = savedLikes ? JSON.parse(savedLikes) : []
     const updatedLikes = likedArtistIds.filter((id: string) => id !== artistId)
     localStorage.setItem("likedArtists", JSON.stringify(updatedLikes))
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-8">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-6 w-32" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="bg-gray-800/30 border-gray-700">
+              <CardContent className="p-0">
+                <Skeleton className="w-full h-48 object-cover" />
+                <div className="p-4">
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -114,11 +165,14 @@ export default function LikesPage() {
                 <Link href={`/artist/${artist.id}`}>
                   <div className="relative">
                     <Image
-                      src={artist.image || "/placeholder.svg"}
+                      src={artist.image || "/placeholder.svg?height=300&width=300"}
                       alt={artist.name}
                       width={300}
                       height={300}
                       className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/placeholder.svg?height=300&width=300';
+                      }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   </div>
@@ -170,4 +224,8 @@ export default function LikesPage() {
       )}
     </div>
   )
+}
+
+function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={`animate-pulse bg-gray-700 rounded-md ${className}`} {...props} />
 }

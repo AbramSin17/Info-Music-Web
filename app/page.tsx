@@ -1,119 +1,211 @@
+// app/page.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { ArtistCard } from "@/components/artist-card"
 import { Input } from "@/components/ui/input"
 import { Search, Users, TrendingUp } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+// Mengimport getArtistImageFromBandsintown
+import { getMultipleArtistsDetails, searchArtistLastFm, getArtistImageFromBandsintown } from '@/lib/api';
 
-interface Artist {
-  id: string
-  name: string
-  genre: string
-  image: string
-  isLiked: boolean
+
+type ArtistFromAPI = {
+  [x: string]: string
+  idArtist: string;
+  strArtist: string;
+  strGenre: string;
+  strArtistThumb: string; // Gambar dari Last.fm
 }
 
-const mockArtists: Artist[] = [
-  {
-    id: "1",
-    name: "The Weeknd",
-    genre: "R&B / Pop",
-    image: "/placeholder.svg?height=300&width=300",
-    isLiked: false,
-  },
-  {
-    id: "2",
-    name: "Queen",
-    genre: "Rock",
-    image: "/placeholder.svg?height=300&width=300",
-    isLiked: true,
-  },
-  {
-    id: "3",
-    name: "Ed Sheeran",
-    genre: "Pop / Folk",
-    image: "/placeholder.svg?height=300&width=300",
-    isLiked: false,
-  },
-  {
-    id: "4",
-    name: "Daft Punk",
-    genre: "Electronic",
-    image: "/placeholder.svg?height=300&width=300",
-    isLiked: true,
-  },
-  {
-    id: "5",
-    name: "Billie Eilish",
-    genre: "Alternative Pop",
-    image: "/placeholder.svg?height=300&width=300",
-    isLiked: false,
-  },
-  {
-    id: "6",
-    name: "Arctic Monkeys",
-    genre: "Indie Rock",
-    image: "/placeholder.svg?height=300&width=300",
-    isLiked: false,
-  },
-  {
-    id: "7",
-    name: "Taylor Swift",
-    genre: "Pop / Country",
-    image: "/placeholder.svg?height=300&width=300",
-    isLiked: true,
-  },
-  {
-    id: "8",
-    name: "Radiohead",
-    genre: "Alternative Rock",
-    image: "/placeholder.svg?height=300&width=300",
-    isLiked: false,
-  },
-]
+interface DisplayArtist {
+  id: string;
+  name: string;
+  genre: string;
+  image: string; // URL gambar akhir
+  isLiked: boolean;
+}
+
+// Data mock dasar jika API tidak menyediakan gambar atau genre, atau untuk fallback umum
+// Ini akan digunakan jika fetch API gagal atau tidak ada hasil
+const genericMockArtists: DisplayArtist[] = [
+  { id: "mock-1", name: "The Weeknd", genre: "R&B / Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-2", name: "Queen", genre: "Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-3", name: "Ed Sheeran", genre: "Pop / Folk", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-4", name: "Daft Punk", genre: "Electronic", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-5", name: "Billie Eilish", genre: "Alternative Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-6", name: "Arctic Monkeys", genre: "Indie Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-7", name: "Taylor Swift", genre: "Pop / Country", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-8", name: "Radiohead", genre: "Alternative Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-9", name: "Coldplay", genre: "Alternative Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-10", name: "Adele", genre: "Soul / Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-11", name: "Bruno Mars", genre: "Pop / R&B", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-12", name: "Ariana Grande", genre: "Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-13", name: "Post Malone", genre: "Hip Hop / Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-14", name: "Harry Styles", genre: "Pop / Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-15", name: "Bad Bunny", genre: "Latin Trap / Reggaeton", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-16", name: "Drake", genre: "Hip Hop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-17", name: "BTS", genre: "K-Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-18", name: "Blackpink", genre: "K-Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-19", name: "Eminem", genre: "Hip Hop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+  { id: "mock-20", name: "Rihanna", genre: "R&B / Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
+];
+
+// Daftar artis default yang akan dicari saat halaman dimuat tanpa searchTerm
+const defaultArtistSearchList = [
+  'Coldplay', 'Queen', 'Taylor Swift', 'The Weeknd', 'Billie Eilish',
+  'Adele', 'Bruno Mars', 'Ariana Grande', 'Post Malone', 'Harry Styles',
+  'Bad Bunny', 'Drake', 'BTS', 'Blackpink', 'Eminem', 'Rihanna',
+  'Justin Bieber', 'Beyonce', 'Lady Gaga', 'Daft Punk', 'Linkin Park',
+  'Metallica', 'Red Hot Chili Peppers', 'Foo Fighters', 'Green Day',
+  'Imagine Dragons', 'Maroon 5', 'Twenty One Pilots'
+];
+
+
+// --- Fungsi Helper isLastFmKnownPlaceholder yang sama ---
+const isLastFmKnownPlaceholder = (url: string): boolean => {
+  if (!url) return false;
+  return url.includes('2a96cbd8b46e442fc41c2b86b821562f.png') ||
+         url.includes('default_avatar.png') ||
+         url.includes('_avatar.png');
+};
+// --- Akhir Fungsi Helper ---
+
 
 export default function HomePage() {
-  const [artists, setArtists] = useState<Artist[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [loading, setLoading] = useState(true)
+  const [artists, setArtists] = useState<DisplayArtist[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [likedArtistIds, setLikedArtistIds] = useState<string[]>([]);
 
+  // Fungsi untuk menggabungkan data API dengan status like dari localStorage
+  const mergeArtistData = useCallback(async (apiArtists: ArtistFromAPI[]) => {
+    const artistsWithImages = await Promise.all(apiArtists.map(async apiArtist => {
+      // Gunakan mbid jika ada, jika tidak, buat ID dari nama artis
+      const id = apiArtist.mbid || apiArtist.strArtist.toLowerCase().replace(/\s/g, "-");
+      
+      // Coba ambil gambar dari Bandsintown terlebih dahulu
+      const bandsintownImage = await getArtistImageFromBandsintown(apiArtist.strArtist);
+      
+      // Gambar dari Last.fm (sudah ada)
+      const lastFmRawImage = apiArtist.strArtistThumb;
+      const lastFmImageCleaned = (lastFmRawImage && !isLastFmKnownPlaceholder(lastFmRawImage)) ? lastFmRawImage : null;
+
+      // Prioritaskan: Bandsintown -> Last.fm (jika bukan placeholder) -> Placeholder lokal
+      const finalImage = bandsintownImage || lastFmImageCleaned || "/placeholder.svg?height=300&width=300";
+
+      return {
+        id: id,
+        name: apiArtist.strArtist || 'Unknown Artist',
+        genre: apiArtist.strGenre || 'Unknown Genre',
+        image: finalImage,
+        isLiked: likedArtistIds.includes(id), // Periksa status liked dari state likedArtistIds
+      };
+    }));
+    return artistsWithImages;
+  }, [likedArtistIds]); // Tambahkan likedArtistIds sebagai dependency
+
+  // Effect untuk memuat liked artists dari localStorage saat komponen mount
   useEffect(() => {
-    // Load liked artists from localStorage
-    const savedLikes = localStorage.getItem("likedArtists")
-    const likedArtistIds = savedLikes ? JSON.parse(savedLikes) : []
+    const savedLikes = localStorage.getItem("likedArtists");
+    if (savedLikes) {
+      setLikedArtistIds(JSON.parse(savedLikes));
+    }
+    // Panggil fetchDataArtists di sini juga untuk memastikan data awal dimuat dengan status like yang benar
+    fetchDataArtists(searchTerm); 
+  }, []); 
 
-    const artistsWithLikes = mockArtists.map((artist) => ({
-      ...artist,
-      isLiked: likedArtistIds.includes(artist.id),
-    }))
+  // Effect untuk debounce pencarian
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchDataArtists(searchTerm);
+    }, 500); 
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]); // Hanya jalankan saat searchTerm berubah
 
-    setArtists(artistsWithLikes)
-    setLoading(false)
-  }, [])
+  const fetchDataArtists = async (query: string) => {
+    setLoading(true);
+    let fetchedApiArtists: DisplayArtist[] = [];
 
-  const filteredArtists = artists.filter(
-    (artist) =>
-      artist.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      artist.genre.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+    try {
+      if (query.trim() === "") {
+        // Jika query kosong, ambil daftar artis default yang lebih banyak
+        const lastFmResults = await getMultipleArtistsDetails(defaultArtistSearchList);
+        
+        // Pastikan setiap artis memiliki ID yang konsisten (MBID atau slug dari nama)
+        fetchedApiArtists = await mergeArtistData(lastFmResults.map((artist: any) => ({
+          idArtist: artist.mbid || artist.name.toLowerCase().replace(/\s/g, "-"), // Gunakan MBID atau buat ID dari nama
+          strArtist: artist.name,
+          strGenre: artist.tags?.tag?.[0]?.name || "Unknown Genre",
+          strArtistThumb: artist.image?.find((img: any) => img.size === "extralarge")?.["#text"] || "/placeholder.svg?height=300&width=300",
+        })));
+      } else {
+        const lastFmResults = await searchArtistLastFm(query);
+        fetchedApiArtists = await mergeArtistData(lastFmResults.map((artist: any) => ({
+          idArtist: artist.mbid || artist.name.toLowerCase().replace(/\s/g, "-"), // Gunakan MBID atau buat ID dari nama
+          strArtist: artist.name,
+          strGenre: "Unknown Genre", // Last.fm search tidak selalu memberikan genre
+          strArtistThumb: artist.image?.find((img: any) => img.size === "extralarge")?.["#text"] || "/placeholder.svg?height=300&width=300",
+        })));
+      }
+
+      // Fallback ke genericMockArtists jika tidak ada hasil dari API dan query kosong
+      if (fetchedApiArtists.length === 0 && query.trim() === "") {
+        setArtists(genericMockArtists.map(artist => ({
+          ...artist,
+          isLiked: likedArtistIds.includes(artist.id),
+          image: isLastFmKnownPlaceholder(artist.image) ? "/placeholder.svg?height=300&width=300" : artist.image, 
+        })));
+      } else if (fetchedApiArtists.length === 0 && query.trim() !== "") {
+        setArtists([]); // Jika ada query tapi tidak ada hasil, tampilkan kosong
+      } else {
+        setArtists(fetchedApiArtists); 
+      }
+
+    } catch (error) {
+      console.error("Error fetching artists:", error);
+      // Fallback ke genericMockArtists jika ada error dan query kosong
+      if (query.trim() === "") {
+        setArtists(genericMockArtists.map(artist => ({
+          ...artist,
+          isLiked: likedArtistIds.includes(artist.id),
+          image: isLastFmKnownPlaceholder(artist.image) ? "/placeholder.svg?height=300&width=300" : artist.image, 
+        })));
+      } else {
+        setArtists([]); // Jika ada query tapi ada error, tampilkan kosong
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const handleToggleLike = (artistId: string) => {
-    const updatedArtists = artists.map((artist) =>
-      artist.id === artistId ? { ...artist, isLiked: !artist.isLiked } : artist,
-    )
+    setLikedArtistIds(prevLikedIds => {
+      const isCurrentlyLiked = prevLikedIds.includes(artistId);
+      const newLikedIds = isCurrentlyLiked
+        ? prevLikedIds.filter(id => id !== artistId)
+        : [...prevLikedIds, artistId];
 
-    setArtists(updatedArtists)
+      localStorage.setItem("likedArtists", JSON.stringify(newLikedIds));
+      
+      // Perbarui status isLiked pada artis yang ada di state 'artists'
+      setArtists(currentArtists => 
+        currentArtists.map(artist =>
+          artist.id === artistId ? { ...artist, isLiked: !isCurrentlyLiked } : artist
+        )
+      );
+      return newLikedIds;
+    });
+  };
 
-    // Save to localStorage
-    const likedArtistIds = updatedArtists.filter((artist) => artist.isLiked).map((artist) => artist.id)
-    localStorage.setItem("likedArtists", JSON.stringify(likedArtistIds))
-  }
 
-  const likedCount = artists.filter((artist) => artist.isLiked).length
+  const likedCount = likedArtistIds.length;
 
   if (loading) {
-    return <ArtistsPageSkeleton />
+    return <ArtistsPageSkeleton />;
   }
 
   return (
@@ -124,14 +216,14 @@ export default function HomePage() {
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
             Discover Artists
           </h1>
-          <p className="text-gray-400 text-lg">Explore and learn about your favorite music artists</p>
+          <p className="text-gray-400 text-lg">Jelajahi dan pelajari tentang artis musik favorit Anda</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
-              placeholder="Search artists or genres..."
+              placeholder="Cari artis atau genre..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 w-full sm:w-80 bg-gray-800/50 border-gray-700 focus:border-cyan-400"
@@ -144,30 +236,30 @@ export default function HomePage() {
       <div className="flex items-center gap-8 text-sm text-gray-400">
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-cyan-400" />
-          <span>{artists.length} Artists</span>
+          <span>{artists.length} Artis Ditemukan</span>
         </div>
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-purple-400" />
-          <span>{likedCount} Liked</span>
+          <span>{likedCount} Disukai</span>
         </div>
       </div>
 
       {/* Artists Grid */}
-      {filteredArtists.length > 0 ? (
+      {artists.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-          {filteredArtists.map((artist) => (
+          {artists.map((artist) => (
             <ArtistCard key={artist.id} artist={artist} onToggleLike={handleToggleLike} />
           ))}
         </div>
       ) : (
         <div className="text-center py-16">
           <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No artists found</h3>
-          <p className="text-gray-400">Try adjusting your search terms</p>
+          <h3 className="text-xl font-semibold mb-2">{searchTerm ? "Tidak ada artis yang cocok ditemukan" : "Mulai pencarian untuk menemukan artis"}</h3>
+          <p className="text-gray-400">Coba sesuaikan istilah pencarian Anda</p>
         </div>
       )}
     </div>
-  )
+  );
 }
 
 function ArtistsPageSkeleton() {

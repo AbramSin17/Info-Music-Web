@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { SidebarLayout } from "@/components/sidebar-layout"
+import { Toaster } from "@/components/ui/toaster" // <--- TAMBAHKAN INI
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -18,9 +19,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-gray-900 text-white overflow-hidden`}>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${inter.className} bg-gray-900 text-white overflow-hidden`} suppressHydrationWarning>
         <SidebarLayout>{children}</SidebarLayout>
+        <Toaster /> {/* <--- TAMBAHKAN INI DI SINI */}
       </body>
     </html>
   )
