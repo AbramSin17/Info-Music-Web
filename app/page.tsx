@@ -11,7 +11,7 @@ import { getMultipleArtistsDetails, searchArtistLastFm, getArtistImageFromBandsi
 
 
 type ArtistFromAPI = {
-  [x: string]: string
+  [x: string]: string // Memungkinkan properti string tambahan
   idArtist: string;
   strArtist: string;
   strGenre: string;
@@ -25,31 +25,6 @@ interface DisplayArtist {
   image: string; // URL gambar akhir
   isLiked: boolean;
 }
-
-// Data mock dasar jika API tidak menyediakan gambar atau genre, atau untuk fallback umum
-// Ini akan digunakan jika fetch API gagal atau tidak ada hasil
-const genericMockArtists: DisplayArtist[] = [
-  { id: "mock-1", name: "The Weeknd", genre: "R&B / Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-2", name: "Queen", genre: "Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-3", name: "Ed Sheeran", genre: "Pop / Folk", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-4", name: "Daft Punk", genre: "Electronic", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-5", name: "Billie Eilish", genre: "Alternative Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-6", name: "Arctic Monkeys", genre: "Indie Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-7", name: "Taylor Swift", genre: "Pop / Country", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-8", name: "Radiohead", genre: "Alternative Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-9", name: "Coldplay", genre: "Alternative Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-10", name: "Adele", genre: "Soul / Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-11", name: "Bruno Mars", genre: "Pop / R&B", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-12", name: "Ariana Grande", genre: "Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-13", name: "Post Malone", genre: "Hip Hop / Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-14", name: "Harry Styles", genre: "Pop / Rock", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-15", name: "Bad Bunny", genre: "Latin Trap / Reggaeton", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-16", name: "Drake", genre: "Hip Hop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-17", name: "BTS", genre: "K-Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-18", name: "Blackpink", genre: "K-Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-19", name: "Eminem", genre: "Hip Hop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-  { id: "mock-20", name: "Rihanna", genre: "R&B / Pop", image: "/placeholder.svg?height=300&width=300", isLiked: false },
-];
 
 // Daftar artis default yang akan dicari saat halaman dimuat tanpa searchTerm
 const defaultArtistSearchList = [
@@ -151,31 +126,13 @@ export default function HomePage() {
         })));
       }
 
-      // Fallback ke genericMockArtists jika tidak ada hasil dari API dan query kosong
-      if (fetchedApiArtists.length === 0 && query.trim() === "") {
-        setArtists(genericMockArtists.map(artist => ({
-          ...artist,
-          isLiked: likedArtistIds.includes(artist.id),
-          image: isLastFmKnownPlaceholder(artist.image) ? "/placeholder.svg?height=300&width=300" : artist.image, 
-        })));
-      } else if (fetchedApiArtists.length === 0 && query.trim() !== "") {
-        setArtists([]); // Jika ada query tapi tidak ada hasil, tampilkan kosong
-      } else {
-        setArtists(fetchedApiArtists); 
-      }
+      // HANYA gunakan fetchedApiArtists. Jika kosong, itu akan memicu pesan "Tidak ada artis yang cocok ditemukan"
+      setArtists(fetchedApiArtists); 
 
     } catch (error) {
       console.error("Error fetching artists:", error);
-      // Fallback ke genericMockArtists jika ada error dan query kosong
-      if (query.trim() === "") {
-        setArtists(genericMockArtists.map(artist => ({
-          ...artist,
-          isLiked: likedArtistIds.includes(artist.id),
-          image: isLastFmKnownPlaceholder(artist.image) ? "/placeholder.svg?height=300&width=300" : artist.image, 
-        })));
-      } else {
-        setArtists([]); // Jika ada query tapi ada error, tampilkan kosong
-      }
+      // Jika ada error, set artists menjadi array kosong agar menampilkan pesan "Tidak ada artis..."
+      setArtists([]); 
     } finally {
       setLoading(false);
     }
