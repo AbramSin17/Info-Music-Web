@@ -1,4 +1,3 @@
-// app/api/artists/route.ts
 import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(req: NextRequest) {
@@ -9,16 +8,25 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing query parameter" }, { status: 400 })
   }
 
+  const apiKey = process.env.LASTFM_API_KEY
+
   try {
-    const res = await fetch(`https://www.theaudiodb.com/api/v1/json/2/search.php?s=${encodeURIComponent(query)}`)
+    const res = await fetch(
+      `http://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(
+        query
+      )}&api_key=${apiKey}&format=json`
+    )
 
     if (!res.ok) {
-      return NextResponse.json({ error: "Failed to fetch from TheAudioDB" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to fetch from Last.fm" }, { status: 500 })
     }
 
     const data = await res.json()
     return NextResponse.json(data)
   } catch (err) {
-    return NextResponse.json({ error: "Server Error", detail: (err as Error).message }, { status: 500 })
+    return NextResponse.json(
+      { error: "Server Error", detail: (err as Error).message },
+      { status: 500 }
+    )
   }
 }
