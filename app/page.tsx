@@ -33,7 +33,9 @@ const defaultArtistSearchList = [
   'Bad Bunny', 'Drake', 'BTS', 'Blackpink', 'Eminem', 'Rihanna',
   'Justin Bieber', 'Beyonce', 'Lady Gaga', 'Daft Punk', 'Linkin Park',
   'Metallica', 'Red Hot Chili Peppers', 'Foo Fighters', 'Green Day',
-  'Imagine Dragons', 'Maroon 5', 'Twenty One Pilots'
+  'Imagine Dragons', 'Maroon 5', 'Twenty One Pilots',"Kendrick Lamar","My Chemical Romance",
+  "Arctic Monkeys", "The Killers", "Paramore", "Panic! At The Disco", "Fall Out",
+  "Linkin Park", "G-Dragon", "Oasis", "Nirvana", "The Rolling Stones", "The Beatles"
 ];
 
 
